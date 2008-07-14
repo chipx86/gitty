@@ -39,6 +39,8 @@ class ProjectTab(gtk.VBox):
         self.commits_tree.show()
         swin.add(self.commits_tree)
 
+        self.commits_tree.connect('commit_changed', self.on_commit_changed)
+
         hbox = gtk.HBox(False, 6)
         hbox.show()
         vbox.pack_start(hbox, False, False, 0)
@@ -48,7 +50,7 @@ class ProjectTab(gtk.VBox):
         hbox.pack_start(label, False, False, 0)
         label.set_use_markup(True)
 
-        self.sha1_label = gtk.Label("7128dffd91967e921f478fabde373a2b6e492cfd")
+        self.sha1_label = gtk.Label()
         self.sha1_label.show()
         hbox.pack_start(self.sha1_label, False, False, 0)
         self.sha1_label.set_max_width_chars(40)
@@ -59,3 +61,6 @@ class ProjectTab(gtk.VBox):
     def __build_bottom_pane(self):
         paned = gtk.HPaned()
         return paned
+
+    def on_commit_changed(self, widget, commit):
+        self.sha1_label.set_text(commit.commit_sha1)

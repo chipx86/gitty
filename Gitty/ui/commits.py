@@ -33,9 +33,9 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
             layout.set_single_paragraph_mode(True)
             return layout
 
-        def draw_text(layout, x_offset, y_offset):
+        def draw_text(layout, x_offset, y_offset, state=gtk.STATE_NORMAL):
             widget.get_style().paint_layout(
-                window, gtk.STATE_NORMAL, True, expose_area,
+                window, state, True, expose_area,
                 widget, "cellrenderertext",
                 x_offset, y_offset, layout)
 
@@ -127,6 +127,8 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
         x_offset += box_size / 4 + 1
         y_offset = cell_area.y + 1
 
+        self.commit.ref_boxes = []
+
         # Draw the tags and branches
         for name in names:
             # Draw the line to the box
@@ -138,6 +140,17 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
             ctx.stroke()
 
             parts = name.split("/")
+
+            box = {
+                'ref': name,
+                'type': parts[0],
+                'x': x_offset - cell_area.x,
+                'y': y_offset - cell_area.y,
+                'width': 0,
+                'height': cell_area.height,
+            }
+
+            known = True
 
             if parts[0] == "heads":
                 x_offset += draw_box(parts[1], x_offset, y_offset,
@@ -177,20 +190,29 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
                           y_offset + (height - text_height) / 2)
 
                 x_offset += width + 1
+            else:
+                known = False
+
+            if known:
+                box['width'] = x_offset - box['x']
+
+                self.commit.ref_boxes.append(box)
 
 
         layout = self.__build_layout(widget)
         text_width, text_height = layout.get_pixel_size()
         x_offset += 10
-        y_offset = (cell_area.height - text_height) / 2
+        y_offset = cell_area.y + (cell_area.height - text_height) / 2
 
-        state = gtk.STATE_NORMAL
+        if flags & gtk.CELL_RENDERER_SELECTED:
+            if widget.is_focus():
+                state = gtk.STATE_SELECTED
+            else:
+                state = gtk.STATE_ACTIVE
+        else:
+            state = gtk.STATE_NORMAL
 
-        widget.get_style().paint_layout(window, state, True, expose_area,
-                                        widget, "cellrenderertext",
-                                        cell_area.x + x_offset,
-                                        cell_area.y + y_offset,
-                                        layout)
+        draw_text(layout, x_offset, y_offset, state)
 
     def on_get_size(self, widget, cell_area=None):
         box_size = self.__get_box_size(widget)
@@ -246,6 +268,12 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
 
 
 class CommitsTree(gtk.TreeView):
+    __gsignals__ = {
+        'commit_changed': (gobject.SIGNAL_RUN_FIRST,
+                           gobject.TYPE_NONE,
+                           (gobject.TYPE_PYOBJECT,)),
+    }
+
     def __init__(self):
         self.model = gtk.ListStore(gobject.TYPE_PYOBJECT, # Commit
                                    gobject.TYPE_STRING,   # Author
@@ -267,6 +295,9 @@ class CommitsTree(gtk.TreeView):
         #column.set_sizing(gtk.TREE_VIEW_COLUMN_AUTOSIZE)
         self.append_column(column)
 
+        self.connect("button-press-event", self.on_button_press)
+        self.get_selection().connect("changed", self.on_selection_changed)
+
         self.graph = CommitGraph()
 
         self.update_commits()
@@ -278,3 +309,31 @@ class CommitsTree(gtk.TreeView):
             self.model.append((commit, author_name, commit.date))
 
         self.queue_resize()
+
+    def on_button_press(self, widget, event):
+        if event.button == 3:
+            path, col, cell_x, cell_y = self.get_path_at_pos(int(event.x),
+                                                             int(event.y))
+            self.set_cursor(path, col, 0)
+
+            commit = self.model.get(self.model.get_iter(path), 0)[0]
+
+            if commit:
+                # We got the commit. See if we clicked a ref.
+                for ref in commit.ref_boxes:
+                    print "Comparing %d, %d to %d - %d, %d - %d" % \
+                        (cell_x, cell_y, ref['x'], ref['x'] + ref['width'],
+                         ref['y'], ref['y'] + ref['height'])
+
+                    if (ref['x'] <= cell_x <= ref['x'] + ref['width'] and
+                        ref['y'] <= cell_y <= ref['y'] + ref['height']):
+                        print ref
+                        break
+
+            return True
+
+        return False
+
+    def on_selection_changed(self, selection):
+        commit = self.model.get(selection.get_selected()[1], 0)[0]
+        self.emit('commit_changed', commit)
