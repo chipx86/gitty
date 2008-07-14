@@ -143,10 +143,10 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
                 x_offset += draw_box(parts[1], x_offset, y_offset,
                                      (0.5, 1, 0.5), (0.2, 0.65, 0.2))
             elif parts[0] == "remotes":
-                x_offset += draw_box(parts[0], x_offset, y_offset,
+                x_offset += draw_box("/".join(parts[:-1]), x_offset, y_offset,
                                      (0.91, 0.73, 0.43),
                                      (0.56, 0.35, 0.01))
-                x_offset += draw_box(parts[1], x_offset - 1, y_offset,
+                x_offset += draw_box(parts[-1], x_offset - 1, y_offset,
                                      (0.5, 1, 0.5), (0.2, 0.65, 0.2))
             elif parts[0] == "tags":
                 layout = build_box_layout(parts[1])
