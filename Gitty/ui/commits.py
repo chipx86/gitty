@@ -10,7 +10,7 @@ from Gitty.git.commits import Commit, CommitGraph
 
 class CommitCellRenderer(gtk.GenericCellRenderer):
     __gproperties__ = {
-        "commit": (gobject.TYPE_PYOBJECT, "Commit", "Commit", 
+        "commit": (gobject.TYPE_PYOBJECT, "Commit", "Commit",
                    gobject.PARAM_READWRITE),
     }
 
@@ -277,6 +277,10 @@ class CommitsTree(gtk.TreeView):
                            (gobject.TYPE_PYOBJECT,)),
     }
 
+    COLUMN_COMMIT = 0
+    COLUMN_AUTHOR = 1
+    COLUMN_DATE = 2
+
     def __init__(self):
         self.model = gtk.ListStore(gobject.TYPE_PYOBJECT, # Commit
                                    gobject.TYPE_STRING,   # Author
@@ -286,16 +290,19 @@ class CommitsTree(gtk.TreeView):
 
         self.selected_commit = None
 
-        column = gtk.TreeViewColumn("Commit", CommitCellRenderer(), commit=0)
+        column = gtk.TreeViewColumn("Commit", CommitCellRenderer(),
+                                    commit=self.COLUMN_COMMIT)
         column.set_resizable(True)
         column.set_expand(True)
         self.append_column(column)
 
-        column = gtk.TreeViewColumn("Author", gtk.CellRendererText(), text=1)
+        column = gtk.TreeViewColumn("Author", gtk.CellRendererText(),
+                                    text=self.COLUMN_AUTHOR)
         column.set_resizable(True)
         self.append_column(column)
 
-        column = gtk.TreeViewColumn("Date", gtk.CellRendererText(), text=2)
+        column = gtk.TreeViewColumn("Date", gtk.CellRendererText(),
+                                    text=self.COLUMN_DATE)
         column.set_resizable(True)
         #column.set_sizing(gtk.TREE_VIEW_COLUMN_AUTOSIZE)
         self.append_column(column)
@@ -304,7 +311,7 @@ class CommitsTree(gtk.TreeView):
         self.get_selection().connect("changed", self.on_selection_changed)
 
         self.set_search_equal_func(self.__search_equal_func)
-        self.set_search_column(0)
+        self.set_search_column(self.COLUMN_COMMIT)
 
         self.graph = CommitGraph()
 
@@ -324,7 +331,8 @@ class CommitsTree(gtk.TreeView):
                                                              int(event.y))
             self.set_cursor(path, col, 0)
 
-            commit = self.model.get(self.model.get_iter(path), 0)[0]
+            commit = self.model.get(self.model.get_iter(path),
+                                    self.COLUMN_COMMIT)[0]
 
             if commit:
                 # We got the commit. See if we clicked a ref.
@@ -346,7 +354,7 @@ class CommitsTree(gtk.TreeView):
         i = selection.get_selected()[1]
 
         if i:
-            commit = self.model.get(i, 0)[0]
+            commit = self.model.get(i, self.COLUMN_COMMIT)[0]
 
             if commit != self.selected_commit:
                 self.selected_commit = commit
