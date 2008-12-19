@@ -5,7 +5,7 @@ import math
 import pango
 
 
-from Gitty.git.commits import CommitGraph
+from Gitty.git.commits import Commit, CommitGraph
 
 
 class CommitCellRenderer(gtk.GenericCellRenderer):
@@ -284,6 +284,8 @@ class CommitsTree(gtk.TreeView):
 
         gtk.TreeView.__init__(self, self.model)
 
+        self.selected_commit = None
+
         column = gtk.TreeViewColumn("Commit", CommitCellRenderer(), commit=0)
         column.set_resizable(True)
         column.set_expand(True)
@@ -300,6 +302,9 @@ class CommitsTree(gtk.TreeView):
 
         self.connect("button-press-event", self.on_button_press)
         self.get_selection().connect("changed", self.on_selection_changed)
+
+        self.set_search_equal_func(self.__search_equal_func)
+        self.set_search_column(0)
 
         self.graph = CommitGraph()
 
@@ -338,5 +343,18 @@ class CommitsTree(gtk.TreeView):
         return False
 
     def on_selection_changed(self, selection):
-        commit = self.model.get(selection.get_selected()[1], 0)[0]
-        self.emit('commit_changed', commit)
+        i = selection.get_selected()[1]
+
+        if i:
+            commit = self.model.get(i, 0)[0]
+
+            if commit != self.selected_commit:
+                self.selected_commit = commit
+                self.emit('commit_changed', commit)
+
+    def __search_equal_func(self, model, column, key, iter):
+        commit = model.get(iter, column)[0]
+        assert isinstance(commit, Commit)
+
+        # Oddly, we return False to indicate a match.
+        return not commit.message.lower().startswith(key.lower())
