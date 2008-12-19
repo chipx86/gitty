@@ -5,7 +5,7 @@ import gtk
 
 from Gitty.git.client import Client
 from Gitty.git.commits import Commit
-from Gitty.ui.commits import CommitsTree
+from Gitty.ui.commits import CommitsTree, ReferencesTree
 from Gitty.ui.sourceview import SourceView
 
 
@@ -29,11 +29,47 @@ class ProjectTab(gtk.VBox):
         paned.pack2(widget, False)
 
     def __build_top_pane(self):
+        def on_references_toggled(toggle):
+            if toggle.get_active():
+                self.refs_swin.show()
+            else:
+                self.refs_swin.hide()
+
         vbox = gtk.VBox(False, 6)
 
+        buttonbox = gtk.HButtonBox()
+        buttonbox.show()
+        vbox.pack_start(buttonbox, False, False, 0)
+        buttonbox.set_layout(gtk.BUTTONBOX_START)
+
+        refs_button = gtk.ToggleButton("References")
+        refs_button.show()
+        buttonbox.pack_start(refs_button, False, False, 0)
+        refs_button.set_active(True)
+        refs_button.connect('toggled', on_references_toggled)
+
+        paned = gtk.HPaned()
+        paned.show()
+        vbox.pack_start(paned, True, True, 0)
+        paned.set_position(200) # XXX Hardcoding sucks
+
+        # Build the references list
+        self.refs_swin = gtk.ScrolledWindow()
+        self.refs_swin.show()
+        paned.pack1(self.refs_swin, False)
+        self.refs_swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        self.refs_swin.set_shadow_type(gtk.SHADOW_IN)
+
+        self.refs_tree = ReferencesTree()
+        self.refs_tree.show()
+        self.refs_swin.add(self.refs_tree)
+        self.refs_tree.connect('reference_changed',
+            lambda w, ref: self.commits_tree.select_reference(ref))
+
+        # Build the commits list
         swin = gtk.ScrolledWindow()
         swin.show()
-        vbox.pack_start(swin, True, True, 0)
+        paned.pack2(swin, True)
         swin.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_ALWAYS)
         swin.set_shadow_type(gtk.SHADOW_IN)
 
@@ -42,6 +78,10 @@ class ProjectTab(gtk.VBox):
         swin.add(self.commits_tree)
 
         self.commits_tree.connect('commit_changed', self.on_commit_changed)
+        self.commits_tree.connect('references_changed',
+                                  lambda w, refs: self.refs_tree.load(refs))
+
+        self.commits_tree.update_commits()
 
         return vbox
 
@@ -94,6 +134,10 @@ class ProjectTab(gtk.VBox):
 
         self.old_version_view.set_text(self.get_commit_contents(commit))
         self.new_version_view.set_text(self.get_commit_contents(commit))
+
+    def on_references_clicked(self, widget):
+        pass
+
 
     def get_commit_contents(self, commit):
         diff = self.client.diff_tree(commit.commit_sha1, commit.parent_sha1[0])

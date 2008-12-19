@@ -7,6 +7,12 @@ re_ident = re.compile(
     '(author|committer) (?P<ident>.*) (?P<epoch>\d+) (?P<tz>[+-]\d{4})')
 
 
+class Reference(object):
+    def __init__(self, name, commit):
+        self.name = name
+        self.commit = commit
+
+
 class Commit(object):
     children_sha1 = {}
 
@@ -205,9 +211,11 @@ class CommitGraph(object):
                              self.colors[parent_id]))
             self.add_incomplete_line(parent_id)
 
-        branch_tag = self.bt_sha1.get(commit.commit_sha1, [])
-
-        commit.node = (node_pos, color, branch_tag)
+        commit.node = (node_pos, color)
+        commit.references = [
+            Reference(ref, commit)
+            for ref in self.bt_sha1.get(commit.commit_sha1, [])
+        ]
 
         # This is actually not wrong. The commit's out lines are the in lines
         # we processed, and vice-versa.
