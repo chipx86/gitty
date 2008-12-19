@@ -23,7 +23,7 @@ class Commit(object):
 
     def parse_commit(self, commit_lines):
         line = commit_lines[0].strip()
-        sha1 = line.split(" ", 1)
+        sha1 = line.split(" ")
         self.commit_sha1 = sha1[0]
         self.parent_sha1 = sha1[1:] or [0]
 
@@ -132,9 +132,8 @@ class CommitGraph(object):
             fp = os.popen("git rev-list --parents --all --header --topo-order")
 
             commit_lines = []
-            input_line = fp.readline()
 
-            while input_line:
+            for input_line in fp.readlines():
                 # The commit header ends with '\0'.
                 # This NUL is immediately folllowed by the sha1 of the
                 # next commit.
@@ -145,8 +144,6 @@ class CommitGraph(object):
 
                     # Skip the '\0'
                     commit_lines = [input_line[1:]]
-
-                input_line = fp.readline()
 
             fp.close()
 
@@ -172,9 +169,6 @@ class CommitGraph(object):
         #   |   -> out_line
         #   X
         #   |\  <- in_line
-
-        if last_node_pos > 5:
-            last_node_pos = -1
 
         # Add the incomplete lines of the last call in this
         if commit.commit_sha1 not in self.colors:
@@ -207,6 +201,8 @@ class CommitGraph(object):
                 last_color = self.colors[parent_id] = last_color + 1
                 last_node_pos = self.node_pos[parent_id] = \
                     last_node_pos + 1
+            else:
+                last_node_pos = self.node_pos[parent_id]
 
             in_lines.append((node_pos, self.node_pos[parent_id],
                              self.colors[parent_id]))
