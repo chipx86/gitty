@@ -3,7 +3,7 @@ import gobject
 import gtk
 import math
 import pango
-
+from xml.sax.saxutils import escape
 
 from Gitty.git.commits import Commit, CommitGraph
 
@@ -43,7 +43,7 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
             layout = build_box_layout(text)
             text_width, text_height = layout.get_pixel_size()
             width = text_width + 10
-            height = text_height + 4
+            height = text_height + 3
 
             ctx.rectangle(x_offset + 0.5, y_offset + 0.5, width, height)
             ctx.set_source_rgb(fill_color[0], fill_color[1], fill_color[2])
@@ -249,7 +249,8 @@ class CommitCellRenderer(gtk.GenericCellRenderer):
         return self._box_size
 
     def __build_layout(self, widget):
-        layout = widget.create_pango_layout(self.commit.message)
+        layout = widget.create_pango_layout("")
+        layout.set_markup("<small>%s</small>" % escape(self.commit.message))
         layout.set_single_paragraph_mode(True)
         return layout
 
@@ -297,12 +298,12 @@ class CommitsTree(gtk.TreeView):
         self.append_column(column)
 
         column = gtk.TreeViewColumn("Author", gtk.CellRendererText(),
-                                    text=self.COLUMN_AUTHOR)
+                                    markup=self.COLUMN_AUTHOR)
         column.set_resizable(True)
         self.append_column(column)
 
         column = gtk.TreeViewColumn("Date", gtk.CellRendererText(),
-                                    text=self.COLUMN_DATE)
+                                    markup=self.COLUMN_DATE)
         column.set_resizable(True)
         #column.set_sizing(gtk.TREE_VIEW_COLUMN_AUTOSIZE)
         self.append_column(column)
@@ -321,7 +322,9 @@ class CommitsTree(gtk.TreeView):
         for commit in self.graph.get_commits():
             i = commit.author.find("<")
             author_name = commit.author[0:i - 1]
-            self.model.append((commit, author_name, commit.date))
+            self.model.append((commit,
+                               "<small>%s</small>" % escape(author_name),
+                               "<small>%s</small>" % escape(commit.date)))
 
         self.queue_resize()
 
