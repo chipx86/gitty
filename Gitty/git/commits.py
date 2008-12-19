@@ -91,8 +91,11 @@ class Commit(object):
 
 class CommitGraph(object):
     def __init__(self):
-        self.commits = []
         self.bt_sha1 = {}
+
+        self.colors = {}
+        self.node_pos = {}
+        self.incomplete_line = {}
 
     def update_bt_sha1(self):
         self.bt_sha1 = {}
@@ -119,48 +122,42 @@ class CommitGraph(object):
         fp.close()
 
     def get_commits(self):
-        if not self.commits:
-            self.update_bt_sha1()
+        self.update_bt_sha1()
 
-            # Reset values
-            self.index = {}
-            self.colors = {}
-            self.node_pos = {}
-            self.incomplete_line = {}
-            self.commits = []
+        index = 0
+        last_color = 0
+        last_node_pos = -1
+        out_lines = []
 
-            fp = os.popen("git rev-list --parents --all --header --topo-order")
+        fp = os.popen("git rev-list --parents --all --header --topo-order")
 
-            commit_lines = []
+        commit_lines = []
 
-            for input_line in fp.readlines():
-                # The commit header ends with '\0'.
-                # This NUL is immediately folllowed by the sha1 of the
-                # next commit.
-                if input_line[0] != '\0':
-                    commit_lines.append(input_line)
-                else:
-                    self.commits.append(Commit(commit_lines))
+        for input_line in fp.xreadlines():
+            # The commit header ends with '\0'.
+            # This NUL is immediately folllowed by the sha1 of the
+            # next commit.
+            if input_line[0] != '\0':
+                commit_lines.append(input_line)
+            else:
+                commit = Commit(commit_lines)
 
-                    # Skip the '\0'
-                    commit_lines = [input_line[1:]]
-
-            fp.close()
-
-            # Compute the graph
-            index = 0
-            last_color = 0
-            last_node_pos = -1
-            out_lines = []
-
-            for commit in self.commits:
                 out_lines, last_color, last_node_pos = \
                     self.make_graph(commit, index, out_lines, last_color,
                                     last_node_pos)
-                self.index[commit.commit_sha1] = index
                 index += 1
 
-        return self.commits
+                yield commit
+
+                # Skip the '\0'
+                commit_lines = [input_line[1:]]
+
+        fp.close()
+
+        # Reset so we don't have to store this data.
+        self.colors = {}
+        self.node_pos = {}
+        self.incomplete_line = {}
 
 
     def make_graph(self, commit, index, out_lines, last_color, last_node_pos):
@@ -239,13 +236,13 @@ class CommitGraph(object):
 
             next_index = index + 1
 
-            if len(self.commits) > next_index + 1:
-                next_commit = self.commits[next_index]
-
-                if next_commit.commit_sha1 == sha1 and pos != int(pos):
-                    # Join the line back to the node point.
-                    # This needs to be done only if we modified it.
-                    in_lines.append((pos, pos - 0.5, self.colors[sha1]))
-                    continue
+#            if len(self.commits) > next_index + 1:
+#                next_commit = self.commits[next_index]
+#
+#                if next_commit.commit_sha1 == sha1 and pos != int(pos):
+#                    # Join the line back to the node point.
+#                    # This needs to be done only if we modified it.
+#                    in_lines.append((pos, pos - 0.5, self.colors[sha1]))
+#                    continue
 
             in_lines.append((pos, pos, self.colors[sha1]))
